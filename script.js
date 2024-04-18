@@ -1,7 +1,7 @@
 //import Firebase libraries needed to connect to database
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
 import { getDatabase, ref, child, get} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-database.js";
-import { getStorage, ref as sRef, listAll} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-storage.js";
+import { getStorage, ref as sRef, getDownloadURL} from "https://www.gstatic.com/firebasejs/10.11.0/firebase-storage.js";
 
 //configuration for Firebase
   const firebaseConfig = {
@@ -23,20 +23,29 @@ import { getStorage, ref as sRef, listAll} from "https://www.gstatic.com/firebas
   //Accessing Firebase Storage to retrieve the images of users
   const storage = getStorage();
 
+
 const video = document.getElementById("video");
 
     const labels = [];
+    const dTokens = [];
 
     const dbRef = ref(getDB);
     get(child(dbRef, 'username')).then((snapshot)=>{
         var data = snapshot.val();
         for(let i in data){
 
-            labels.push(data[i].replaceAll('"', ''));           
-        }
-        console.log(labels)
-    })
+            labels.push(data[i].replaceAll('"', '')); 
 
+            get(child(dbRef, data[i].replaceAll('"', ''))).then((snapshot)=>{
+            var data2 = snapshot.val();
+            for(let i in data2){
+    
+                dTokens.push(data2[i].replaceAll('"', ''));           
+            }
+            console.log(dTokens)
+        })          
+        }
+    })
     
 
 Promise.all([
@@ -63,12 +72,19 @@ function startWebcam() {
 
 function getLabeledFaceDescriptions() {
 
+    
 
   return Promise.all(
     labels.map(async (label) => {
       const descriptions = [];
+        var a = label;
+        var token = dTokens[labels.indexOf(label)];
 
-        const img = await faceapi.fetchImage(`https://firebasestorage.googleapis.com/v0/b/facerecognitiontestdb.appspot.com/o/${label}%2F1.jpg?alt=media`);
+        var file = `https://firebasestorage.googleapis.com/v0/b/facerecognitiontestdb.appspot.com/o/${label.replaceAll(' ', '%20')}%2F1.jpg?alt=media&token=`+token
+        
+        console.log(token)
+        console.log(file)
+        const img = await faceapi.fetchImage(file);
         const detections = await faceapi
           .detectSingleFace(img)
           .withFaceLandmarks()
@@ -76,6 +92,7 @@ function getLabeledFaceDescriptions() {
         descriptions.push(detections.descriptor);
         
       return new faceapi.LabeledFaceDescriptors(label, descriptions);
+      
     })
   );
 }
